@@ -1,0 +1,79 @@
+name: observatory
+services:
+    observatory:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - ./data:/usr/src/app/data
+        restart: always
+        environment:
+            NODE_ENV: production
+            POSTGRES_HOST: postgres
+            POSTGRES_PORT: 5432
+            REDIS_HOST: redis
+            LOKI_HOST: http://loki:3100
+        ports:
+            - ${PORT}:${PORT}
+        depends_on:
+            - loki
+            - postgres
+            - redis
+            - grafana
+        networks:
+            - container_network
+
+    postgres:
+        image: postgres:17
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        ports:
+            - ${POSTGRES_PORT}:5432
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - container_network
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    grafana:
+        image: grafana/grafana
+        restart: unless-stopped
+        ports:
+            - '3033:3000'
+        environment:
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+        volumes:
+            - ./grafana:/var/lib/grafana
+        depends_on:
+            - loki
+        networks:
+            - container_network
+
+    loki:
+        image: grafana/loki:2.7.3
+        restart: unless-stopped
+        networks:
+            - container_network
+
+    redis:
+        image: redis:8.2.2
+        restart: unless-stopped
+        volumes:
+            - redis:/data
+        networks:
+            - container_network
+
+volumes:
+    redis:
+    postgres_data:
+
+networks:
+    container_network:
+        driver: bridge

@@ -1,5 +1,3 @@
-# 🔭 Observatory - Powerful beatmap manager for osu!
-
 <p align="center">
   <img src="./observatory.png"/>
 </p>

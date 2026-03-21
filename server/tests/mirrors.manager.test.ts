@@ -567,6 +567,158 @@ describe("MirrorsManager", () => {
       );
     });
 
+    describe("GetBeatmapByFilename", () => {
+      const mirrors = getMirrorsWithAbility(
+        ClientAbilities.GetBeatmapByFilename,
+      );
+
+      test.each(mirrors)(
+                `$name: Should successfully fetch a beatmap by filename`,
+                async (mirror) => {
+                  const client = getMirrorClient(mirror);
+
+                  const beatmapId = faker.number.int({
+                    min: 1,
+                    max: 1000000,
+                  });
+
+                  const beatmapFilename = `${faker.music.artist()} - ${faker.music.songName()} (${faker.internet.username()}) [${faker.string.alpha(6)}].osu`;
+
+                  const { mockBeatmap } = Mocker.getClientMockMethods(client);
+
+                  mockBeatmap({
+                    data: {
+                      id: beatmapId,
+                    },
+                  });
+
+                  const result = await mirrorsManager.getBeatmap({
+                    beatmapFilename,
+                  });
+
+                  expect(result.status).toBe(200);
+                  expect(result.result).not.toBeNull();
+                  expect(result.result?.id).toBe(beatmapId);
+                },
+      );
+
+      test.each(mirrors)(
+                `$name: Should successfully update ratelimit during get beatmap by filename request`,
+                async (mirror) => {
+                  const client = getMirrorClient(mirror);
+
+                  const beatmapId = faker.number.int({
+                    min: 1,
+                    max: 1000000,
+                  });
+
+                  const beatmapFilename = `${faker.music.artist()} - ${faker.music.songName()} (${faker.internet.username()}) [${faker.string.alpha(6)}].osu`;
+
+                  const { generateBeatmap }
+                    = Mocker.getClientGenerateMethods(client);
+
+                  const mockApiGet = Mocker.mockRequest(
+                    client,
+                    "baseApi",
+                    "get",
+                    {
+                      data: generateBeatmap({ id: beatmapId }),
+                      status: 200,
+                      headers: {},
+                    },
+                  );
+
+                  const request = mirrorsManager.getBeatmap({
+                    beatmapFilename,
+                  });
+
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapByFilename);
+
+                  let capacity = client.getCapacity(
+                    ClientAbilities.GetBeatmapByFilename,
+                  );
+
+                  expect(capacity.remaining).toBeLessThan(capacity.limit);
+
+                  const awaitedResult = await request;
+
+                  expect(mockApiGet).toHaveBeenCalledTimes(1);
+
+                  capacity = client.getCapacity(
+                    ClientAbilities.GetBeatmapByFilename,
+                  );
+
+                  expect(awaitedResult.status).toBe(200);
+                  expect(awaitedResult.result).not.toBeNull();
+                  expect(awaitedResult.result?.id).toBe(beatmapId);
+
+                  expect(capacity.remaining).toBeLessThan(capacity.limit);
+                },
+      );
+
+      test.each(mirrors)(
+                `$name: Should successfully return 404 when beatmap is not found`,
+                async (mirror) => {
+                  const client = getMirrorClient(mirror);
+
+                  const beatmapFilename = `${faker.music.artist()} - ${faker.music.songName()} (${faker.internet.username()}) [${faker.string.alpha(6)}].osu`;
+
+                  const mockApiGet = Mocker.mockRequest(
+                    client,
+                    "baseApi",
+                    "get",
+                    {
+                      data: null,
+                      status: 404,
+                      headers: {},
+                    },
+                  );
+
+                  const request = mirrorsManager.getBeatmap({
+                    beatmapFilename,
+                  });
+
+                  const awaitedResult = await request;
+
+                  expect(mockApiGet).toHaveBeenCalledTimes(1);
+
+                  expect(awaitedResult.status).toBe(404);
+                  expect(awaitedResult.result).toBeNull();
+                },
+      );
+
+      test.each(mirrors)(
+                `$name: Should successfully return 502 when API request fails and no other mirrors are available`,
+                async (mirror) => {
+                  const client = getMirrorClient(mirror);
+
+                  const beatmapFilename = `${faker.music.artist()} - ${faker.music.songName()} (${faker.internet.username()}) [${faker.string.alpha(6)}].osu`;
+
+                  const mockApiGet = Mocker.mockRequest(
+                    client,
+                    "baseApi",
+                    "get",
+                    {
+                      data: null,
+                      status: 500,
+                      headers: {},
+                    },
+                  );
+
+                  const request = mirrorsManager.getBeatmap({
+                    beatmapFilename,
+                  });
+
+                  const awaitedResult = await request;
+
+                  expect(mockApiGet).toHaveBeenCalledTimes(1);
+
+                  expect(awaitedResult.status).toBe(502);
+                  expect(awaitedResult.result).toBeNull();
+                },
+      );
+    });
+
     describe("DownloadBeatmapSetById", () => {
       const mirrors = getMirrorsWithAbility(
         ClientAbilities.DownloadBeatmapSetById,

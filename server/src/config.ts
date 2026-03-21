@@ -35,6 +35,7 @@ const {
   DISABLE_DAILY_RATE_LIMIT,
   ENABLE_CRON_TO_CLEAR_OUTDATED_BEATMAPS,
   SHOW_INTERNAL_VALUES_IN_PUBLIC_STATS_ENDPOINT,
+  USE_US_CATBOY_SERVER_ONLY, // TODO: Hopefully a temporary solution for catboy.best (mino) mirror problems. Consider removing this in the future when the mirror is more stable.
 } = process.env;
 
 if (!POSTGRES_USER || !POSTGRES_PASSWORD) {
@@ -77,6 +78,7 @@ const config: {
   DisableDailyRateLimit: boolean;
   EnableCronToClearOutdatedBeatmaps: boolean;
   ShowInternalValuesInPublicStatsEndpoint: boolean;
+  UseUsCatboyServerOnly: boolean;
 } = {
   PORT: PORT || "3000",
   POSTGRES_USER: POSTGRES_USER || "admin",
@@ -104,6 +106,7 @@ const config: {
         ENABLE_CRON_TO_CLEAR_OUTDATED_BEATMAPS === "true",
   ShowInternalValuesInPublicStatsEndpoint:
         SHOW_INTERNAL_VALUES_IN_PUBLIC_STATS_ENDPOINT === "true",
+  UseUsCatboyServerOnly: USE_US_CATBOY_SERVER_ONLY === "true",
 };
 
 export const observatoryConfigPublic = {
@@ -119,6 +122,7 @@ export const observatoryConfigPublic = {
   DisableDailyRateLimit: DISABLE_DAILY_RATE_LIMIT === "true",
   EnableCronToClearOutdatedBeatmaps:
         ENABLE_CRON_TO_CLEAR_OUTDATED_BEATMAPS === "true",
+  UseUsCatboyServerOnly: USE_US_CATBOY_SERVER_ONLY === "true",
 };
 
 export default config;

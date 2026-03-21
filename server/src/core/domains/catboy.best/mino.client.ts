@@ -1,5 +1,6 @@
 import qs from "qs";
 
+import config from "../../../config";
 import type { Beatmap, Beatmapset } from "../../../types/general/beatmap";
 import logger from "../../../utils/logger";
 import { BaseClient } from "../../abstracts/client/base-client.abstract";
@@ -21,7 +22,7 @@ export class MinoClient extends BaseClient {
   constructor(storageManager: StorageManager) {
     super(
       {
-        baseUrl: "https://catboy.best",
+        baseUrl: config.UseUsCatboyServerOnly ? "https://us.catboy.best" : "https://catboy.best",
         abilities: [
           ClientAbilities.GetBeatmapById,
           ClientAbilities.GetBeatmapSetById,

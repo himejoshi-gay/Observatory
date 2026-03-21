@@ -45,8 +45,6 @@ describe("MirrorsManager", () => {
   let mockStorageManager: StorageManager;
 
   beforeAll(async () => {
-    await Mocker.ensureDatabaseInitialized();
-
     mockStorageManager = {
       getBeatmapSet: mock(async () => {}),
       insertBeatmapset: mock(async () => {}),

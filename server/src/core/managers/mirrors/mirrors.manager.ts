@@ -328,9 +328,30 @@ export class MirrorsManager {
       )
       .filter(client => !ignore || !ignore.includes(client));
 
-    const client = this.getClientByWeight(criteria, clients);
+    const isSearchCriteria = criteria === ClientAbilities.SearchBeatmapsets;
+
+    const client = isSearchCriteria
+      ? this.getClientForSearchEndpoint(clients)
+      : this.getClientByWeight(criteria, clients);
 
     return client;
+  }
+
+  // We want to prioritise a single mirror for all search endpoints while it's available to have consistent results from page to page.
+  private getClientForSearchEndpoint(clients: MirrorClient[]): MirrorClient | null {
+    const minoClient = clients.find(client => client.client.clientConfig.baseUrl === "https://us.catboy.best"
+      || client.client.clientConfig.baseUrl === "https://catboy.best"); // TODO: I don't like how we address them by url, should be addressed later.
+
+    if (minoClient) {
+      return minoClient;
+    }
+
+    const banchoClient = clients.find(client => client.client.clientConfig.baseUrl === "https://osu.ppy.sh");
+    if (banchoClient) {
+      return banchoClient;
+    }
+
+    return this.getClientByWeight(ClientAbilities.SearchBeatmapsets, clients);
   }
 
   private getClientByWeight(

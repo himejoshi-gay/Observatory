@@ -2,6 +2,7 @@ import { t } from "elysia";
 
 import type { App } from "../../app";
 import { BeatmapsManagerPlugin } from "../../plugins/beatmapManager";
+import { BEATMAPS_SEARCH_MAX_RESULTS_LIMIT } from "../../types/general/api";
 
 export default (app: App) => {
   app.use(BeatmapsManagerPlugin)
@@ -121,7 +122,12 @@ export default (app: App) => {
       async ({ BeatmapsManagerInstance, query, set }) => {
         // TODO: Add another search endpoint which would parse cursors instead of pages, to create compatibility with bancho api;
 
+        if (query.limit && (query.limit > BEATMAPS_SEARCH_MAX_RESULTS_LIMIT || query.limit < 1)) {
+          throw new Error(`Limit is too high. Maximum limit is ${BEATMAPS_SEARCH_MAX_RESULTS_LIMIT}`);
+        }
+
         const data = await BeatmapsManagerInstance.searchBeatmapsets({
+          limit: query.limit ?? 50,
           ...query,
         });
 
@@ -135,7 +141,7 @@ export default (app: App) => {
       {
         query: t.Object({
           query: t.Optional(t.String()),
-          limit: t.Optional(t.Numeric()),
+          limit: t.Optional(t.Numeric({ min: 1, max: BEATMAPS_SEARCH_MAX_RESULTS_LIMIT })),
           offset: t.Optional(t.Numeric()),
           status: t.Optional(t.Array(t.Numeric())),
           mode: t.Optional(t.Numeric()),

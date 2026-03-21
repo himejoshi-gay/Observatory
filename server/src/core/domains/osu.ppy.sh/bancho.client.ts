@@ -24,6 +24,7 @@ export class BanchoClient extends BaseClient {
         baseUrl: "https://osu.ppy.sh",
         abilities: [
           ClientAbilities.GetBeatmapById,
+          ClientAbilities.GetBeatmapByHash,
           ClientAbilities.GetBeatmapSetById,
           ClientAbilities.GetBeatmaps,
           ClientAbilities.DownloadOsuBeatmap,
@@ -31,10 +32,15 @@ export class BanchoClient extends BaseClient {
         ],
       },
       {
+        headers: {
+          remaining: "x-ratelimit-remaining",
+          limit: "x-ratelimit-limit",
+        },
         rateLimits: [
           {
             abilities: [
               ClientAbilities.GetBeatmapById,
+              ClientAbilities.GetBeatmapByHash,
               ClientAbilities.GetBeatmapSetById,
               ClientAbilities.GetBeatmaps,
               ClientAbilities.DownloadOsuBeatmap,
@@ -66,6 +72,9 @@ export class BanchoClient extends BaseClient {
   ): Promise<ResultWithStatus<Beatmap>> {
     if (ctx.beatmapId) {
       return await this.getBeatmapById(ctx.beatmapId);
+    }
+    else if (ctx.beatmapHash) {
+      return await this.getBeatmapByHash(ctx.beatmapHash);
     }
 
     throw new Error("Invalid arguments");
@@ -188,6 +197,27 @@ export class BanchoClient extends BaseClient {
               },
             },
     );
+
+    if (!result || result.status !== 200 || !result.data) {
+      return { result: null, status: result?.status ?? 500 };
+    }
+
+    return {
+      result: this.convertService.convertBeatmap(result.data),
+      status: result.status,
+    };
+  }
+
+  private async getBeatmapByHash(
+    beatmapHash: string,
+  ): Promise<ResultWithStatus<Beatmap>> {
+    const result = await this.api.get<BanchoBeatmap>(`api/v2/beatmaps/lookup?checksum=${beatmapHash}`, {
+      config: {
+        headers: {
+          Authorization: `Bearer ${await this.osuApiKey}`,
+        },
+      },
+    });
 
     if (!result || result.status !== 200 || !result.data) {
       return { result: null, status: result?.status ?? 500 };

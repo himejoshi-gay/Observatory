@@ -40,6 +40,20 @@ function getMirrorsWithAbility(ability: ClientAbilities) {
   );
 }
 
+async function waitForCapacityChange(
+  client: BaseClient,
+  ability: ClientAbilities,
+  timeout = 1000,
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const { remaining, limit } = client.getCapacity(ability);
+    if (remaining < limit)
+      return;
+    await new Promise(r => setTimeout(r, 5));
+  }
+}
+
 describe("MirrorsManager", () => {
   let mirrorsManager: MirrorsManager;
   let mockStorageManager: StorageManager;
@@ -162,8 +176,7 @@ describe("MirrorsManager", () => {
                     beatmapSetId,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapSetById);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.GetBeatmapSetById,
@@ -316,8 +329,7 @@ describe("MirrorsManager", () => {
                     beatmapId,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapById);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.GetBeatmapById,
@@ -467,8 +479,7 @@ describe("MirrorsManager", () => {
                     beatmapHash,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapByHash);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.GetBeatmapByHash,
@@ -614,8 +625,7 @@ describe("MirrorsManager", () => {
                     beatmapSetId,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.DownloadBeatmapSetById);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.DownloadBeatmapSetById,
@@ -769,8 +779,7 @@ describe("MirrorsManager", () => {
                     noVideo: true,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.DownloadBeatmapSetByIdNoVideo);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.DownloadBeatmapSetByIdNoVideo,
@@ -967,8 +976,7 @@ describe("MirrorsManager", () => {
                     beatmapIds,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapsetsByBeatmapIds);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.GetBeatmapsetsByBeatmapIds,
@@ -1117,8 +1125,7 @@ describe("MirrorsManager", () => {
                     beatmapId,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.DownloadOsuBeatmap);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.DownloadOsuBeatmap,
@@ -1273,8 +1280,7 @@ describe("MirrorsManager", () => {
                     allowMissingNonBeatmapValues: true,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapById);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.GetBeatmapById,
@@ -1428,8 +1434,7 @@ describe("MirrorsManager", () => {
                     allowMissingNonBeatmapValues: true,
                   });
 
-                  // Skip a tick to check if is on cooldown
-                  await new Promise(r => setTimeout(r, 0));
+                  await waitForCapacityChange(client, ClientAbilities.GetBeatmapByHash);
 
                   let capacity = client.getCapacity(
                     ClientAbilities.GetBeatmapByHash,

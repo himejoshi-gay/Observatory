@@ -2,6 +2,7 @@ import qs from "qs";
 
 import { BEATMAPS_SEARCH_MAX_RESULTS_LIMIT } from "../../../types/general/api";
 import type { Beatmap, Beatmapset } from "../../../types/general/beatmap";
+import { RankStatus, RankStatusInt } from "../../../types/general/rankStatus";
 import logger from "../../../utils/logger";
 import { BaseClient } from "../../abstracts/client/base-client.abstract";
 import type {
@@ -190,10 +191,11 @@ export class BanchoClient extends BaseClient {
           Authorization: `Bearer ${await this.osuApiKey}`,
         },
         params: {
-          query: ctx.query,
+          q: ctx.query,
           page,
-          status: ctx.status,
-          mode: ctx.mode,
+          s: ctx.status ? ctx.status.map(status => this.mapStatusToRankStatus(status).toString()) : undefined,
+          m: ctx.mode,
+          nsfw: true, // TODO: Maybe make this configurable?
         },
         paramsSerializer: params =>
           qs.stringify(params, { indices: false }),
@@ -227,6 +229,25 @@ export class BanchoClient extends BaseClient {
       ))],
       status: result.status,
     };
+  }
+
+  private mapStatusToRankStatus(status: RankStatusInt): RankStatus {
+    switch (status) {
+      case RankStatusInt.PENDING:
+        return RankStatus.PENDING;
+      case RankStatusInt.QUALIFIED:
+        return RankStatus.QUALIFIED;
+      case RankStatusInt.LOVED:
+        return RankStatus.LOVED;
+      case RankStatusInt.GRAVEYARD:
+        return RankStatus.GRAVEYARD;
+      case RankStatusInt.WIP:
+        return RankStatus.WIP;
+      case RankStatusInt.APPROVED:
+        return RankStatus.APPROVED;
+    }
+
+    return RankStatus.PENDING;
   }
 
   private async getBeatmapSetById(

@@ -49,6 +49,10 @@ export class StorageManager {
   async getBeatmap(
     ctx: GetBeatmapOptions,
   ): Promise<Beatmap | null | undefined> {
+    if (!ctx.beatmapId && !ctx.beatmapHash && !ctx.beatmapFilename) {
+      throw new Error("Either beatmapId, beatmapHash or beatmapFilename is required");
+    }
+
     let entity = await this.cacheService.getBeatmap(ctx);
 
     if (entity !== undefined) {
@@ -60,6 +64,9 @@ export class StorageManager {
     }
     else if (ctx.beatmapHash) {
       entity = await getBeatmapByHash(ctx.beatmapHash);
+    }
+    else if (ctx.beatmapFilename) {
+      // We don't store filenames in database, skip
     }
 
     if (entity) {
@@ -145,6 +152,10 @@ export class StorageManager {
     if (beatmap) {
       await createBeatmap(beatmap);
       await this.cacheService.insertBeatmap(beatmap);
+
+      if (ctx.beatmapFilename) {
+        await this.cacheService.insertBeatmapByFilename(beatmap, ctx.beatmapFilename);
+      }
     }
     else {
       await this.cacheService.insertEmptyBeatmap(ctx);

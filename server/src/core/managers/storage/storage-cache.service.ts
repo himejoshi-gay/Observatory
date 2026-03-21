@@ -23,11 +23,28 @@ export class StorageCacheService {
   async getBeatmap(
     ctx: GetBeatmapOptions,
   ): Promise<Beatmap | null | undefined> {
+    if (!ctx.beatmapId && !ctx.beatmapHash && !ctx.beatmapFilename) {
+      throw new Error("Either beatmapId, beatmapHash or beatmapFilename is required");
+    }
+
     let { beatmapId } = ctx;
 
     if (ctx.beatmapHash) {
       const cachedId = await this.redis.get(
-                `${RedisKeys.BEATMAP_ID_BY_HASH}${ctx.beatmapHash}`,
+        `${RedisKeys.BEATMAP_ID_BY_HASH}${ctx.beatmapHash}`,
+      );
+
+      if (!cachedId)
+        return undefined;
+      if (cachedId === "null")
+        return null;
+
+      beatmapId = Number(cachedId);
+    }
+
+    if (ctx.beatmapFilename) {
+      const cachedId = await this.redis.get(
+        `${RedisKeys.BEATMAP_ID_BY_FILENAME}${ctx.beatmapFilename}`,
       );
 
       if (!cachedId)
@@ -46,9 +63,18 @@ export class StorageCacheService {
   }
 
   async insertEmptyBeatmap(ctx: GetBeatmapOptions) {
-    const key = ctx?.beatmapId
-      ? `${RedisKeys.BEATMAP_BY_ID}${ctx?.beatmapId}`
-      : `${RedisKeys.BEATMAP_ID_BY_HASH}${ctx?.beatmapHash}`;
+    let key = "";
+
+    if (ctx?.beatmapId) {
+      key = `${RedisKeys.BEATMAP_BY_ID}${ctx?.beatmapId}`;
+    }
+    else if (ctx?.beatmapHash) {
+      key = `${RedisKeys.BEATMAP_ID_BY_HASH}${ctx?.beatmapHash}`;
+    }
+    else if (ctx?.beatmapFilename) {
+      key = `${RedisKeys.BEATMAP_ID_BY_FILENAME}${ctx?.beatmapFilename}`;
+    }
+
     await this.redis.set(
       key,
       "null",
@@ -70,6 +96,15 @@ export class StorageCacheService {
             beatmap.id,
             "PX",
             this.getRedisTTLBasedOnStatus(beatmap.status),
+    );
+  }
+
+  async insertBeatmapByFilename(beatmap: Beatmap, filename: string) {
+    await this.redis.set(
+      `${RedisKeys.BEATMAP_ID_BY_FILENAME}${filename}`,
+      beatmap.id,
+      "PX",
+      this.getRedisTTLBasedOnStatus(beatmap.status),
     );
   }
 

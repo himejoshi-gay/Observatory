@@ -125,8 +125,8 @@ export class MirrorsManager {
   async getBeatmap(
     ctx: GetBeatmapOptions,
   ): Promise<ResultWithStatus<Beatmap>> {
-    if (!ctx.beatmapId && !ctx.beatmapHash) {
-      throw new Error("Either beatmapId or beatmapHash is required");
+    if (!ctx.beatmapId && !ctx.beatmapHash && !ctx.beatmapFilename) {
+      throw new Error("Either beatmapId, beatmapHash or beatmapFilename is required");
     }
 
     let criteria: ClientAbilities;
@@ -135,10 +135,13 @@ export class MirrorsManager {
         ? ClientAbilities.GetBeatmapByIdWithSomeNonBeatmapValues
         : ClientAbilities.GetBeatmapById;
     }
-    else {
+    else if (ctx.beatmapHash) {
       criteria = ctx.allowMissingNonBeatmapValues
         ? ClientAbilities.GetBeatmapByHashWithSomeNonBeatmapValues
         : ClientAbilities.GetBeatmapByHash;
+    }
+    else {
+      criteria = ClientAbilities.GetBeatmapByFilename;
     }
 
     return await this.useMirror<Beatmap>(ctx, criteria, "getBeatmap");

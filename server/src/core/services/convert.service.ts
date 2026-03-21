@@ -27,6 +27,7 @@ export class ConvertService {
       case "https://osu.ppy.sh":
         this.mirror = "bancho";
         break;
+      case "https://us.catboy.best":
       case "https://catboy.best":
         this.mirror = "mino";
         break;
@@ -110,8 +111,8 @@ export class ConvertService {
     return {
       ...beatmap,
       failtimes: {
-        fail: Array.from({ length: 100 }).fill(0),
-        exit: Array.from({ length: 100 }).fill(0),
+        fail: Array.from<number>({ length: 100 }).fill(0),
+        exit: Array.from<number>({ length: 100 }).fill(0),
       },
     };
   }

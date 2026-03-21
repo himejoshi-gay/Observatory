@@ -1,4 +1,8 @@
+import qs from "qs";
+
+import { BEATMAPS_SEARCH_MAX_RESULTS_LIMIT } from "../../../types/general/api";
 import type { Beatmap, Beatmapset } from "../../../types/general/beatmap";
+import { RankStatus, RankStatusInt } from "../../../types/general/rankStatus";
 import logger from "../../../utils/logger";
 import { BaseClient } from "../../abstracts/client/base-client.abstract";
 import type {
@@ -8,12 +12,16 @@ import type {
   GetBeatmapsetsByBeatmapIdsOptions,
   GetBeatmapsOptions,
   ResultWithStatus,
+  SearchBeatmapsetsOptions,
 } from "../../abstracts/client/base-client.types";
 import {
   ClientAbilities,
 } from "../../abstracts/client/base-client.types";
 import { BanchoService } from "./bancho-client.service";
-import type { BanchoBeatmap, BanchoBeatmapset } from "./bancho-client.types";
+import type { BanchoBeatmap, BanchoBeatmapset, BanchoBeatmapsetSearchResult } from "./bancho-client.types";
+
+const BANCHO_SEARCH_PAGE_SIZE = 50;
+const BANCHO_SEARCH_PAGES_LIMIT = 200;
 
 export class BanchoClient extends BaseClient {
   private readonly banchoService = new BanchoService(this.baseApi);
@@ -24,21 +32,31 @@ export class BanchoClient extends BaseClient {
         baseUrl: "https://osu.ppy.sh",
         abilities: [
           ClientAbilities.GetBeatmapById,
+          ClientAbilities.GetBeatmapByHash,
+          ClientAbilities.GetBeatmapByFilename,
           ClientAbilities.GetBeatmapSetById,
           ClientAbilities.GetBeatmaps,
           ClientAbilities.DownloadOsuBeatmap,
           ClientAbilities.GetBeatmapsetsByBeatmapIds,
+          ClientAbilities.SearchBeatmapsets,
         ],
       },
       {
+        headers: {
+          remaining: "x-ratelimit-remaining",
+          limit: "x-ratelimit-limit",
+        },
         rateLimits: [
           {
             abilities: [
               ClientAbilities.GetBeatmapById,
+              ClientAbilities.GetBeatmapByHash,
+              ClientAbilities.GetBeatmapByFilename,
               ClientAbilities.GetBeatmapSetById,
               ClientAbilities.GetBeatmaps,
               ClientAbilities.DownloadOsuBeatmap,
               ClientAbilities.GetBeatmapsetsByBeatmapIds,
+              ClientAbilities.SearchBeatmapsets,
             ],
             routes: ["/"],
             limit: 1200,
@@ -66,6 +84,12 @@ export class BanchoClient extends BaseClient {
   ): Promise<ResultWithStatus<Beatmap>> {
     if (ctx.beatmapId) {
       return await this.getBeatmapById(ctx.beatmapId);
+    }
+    else if (ctx.beatmapHash) {
+      return await this.getBeatmapByHash(ctx.beatmapHash);
+    }
+    else if (ctx.beatmapFilename) {
+      return await this.getBeatmapByFilename(ctx.beatmapFilename);
     }
 
     throw new Error("Invalid arguments");
@@ -151,6 +175,117 @@ export class BanchoClient extends BaseClient {
     return { result: result.data, status: result.status };
   }
 
+  async searchBeatmapsets(
+    ctx: SearchBeatmapsetsOptions,
+  ): Promise<ResultWithStatus<Beatmapset[]>> {
+    const page = Math.floor((ctx.offset ?? 0) / BANCHO_SEARCH_PAGE_SIZE) + 1;
+
+    if (page > BANCHO_SEARCH_PAGES_LIMIT
+      || (ctx.limit && ctx.limit > BANCHO_SEARCH_PAGE_SIZE && page === BANCHO_SEARCH_PAGES_LIMIT)) {
+      return { result: null, status: 500 }; // Bancho API has a limit of 200 pages
+    }
+
+    let sort_by = undefined;
+
+    // TODO: This is expected behaviour of catboy, so sunrise just went with it, but maybe we should consider adding a separate parameter for sorting instead of overloading the query parameter?
+    if (ctx.query && ["Newest", "Top Rated", "Most Played"].includes(ctx.query)) {
+      switch (ctx.query) {
+        case "Newest":
+          // Default one
+          break;
+        case "Top Rated":
+          sort_by = "rating_desc";
+          break;
+        case "Most Played":
+          sort_by = "plays_desc";
+          break;
+      }
+
+      ctx.query = undefined;
+    }
+
+    const result = await this.api.get<BanchoBeatmapsetSearchResult>(`api/v2/beatmapsets/search`, {
+      config: {
+        headers: {
+          Authorization: `Bearer ${await this.osuApiKey}`,
+        },
+        params: {
+          q: ctx.query,
+          sort: sort_by,
+          page,
+          s: ctx.status ? ctx.status.map(status => this.mapStatusToRankStatus(status).toString()) : undefined,
+          m: ctx.mode,
+          nsfw: true, // TODO: Maybe make this configurable?
+        },
+        paramsSerializer: params =>
+          qs.stringify(params, { indices: false }),
+      },
+    });
+
+    if (!result || result.status !== 200 || !result.data) {
+      return { result: null, status: result?.status ?? 500 };
+    }
+
+    let { beatmapsets } = result.data;
+
+    if (ctx.limit && ctx.limit <= BEATMAPS_SEARCH_MAX_RESULTS_LIMIT) {
+      if (ctx.limit < BANCHO_SEARCH_PAGE_SIZE) {
+        beatmapsets = beatmapsets.slice(0, ctx.limit);
+      }
+
+      if (ctx.limit > BANCHO_SEARCH_PAGE_SIZE && page < BANCHO_SEARCH_PAGES_LIMIT) {
+        const resultForAdditionalBeatmaps = await this.api.get<BanchoBeatmapsetSearchResult>(`api/v2/beatmapsets/search`, {
+          config: {
+            headers: {
+              Authorization: `Bearer ${await this.osuApiKey}`,
+            },
+            params: {
+              q: ctx.query,
+              page: page + 1,
+              s: ctx.status ? ctx.status.map(status => this.mapStatusToRankStatus(status).toString()) : undefined,
+              m: ctx.mode,
+              nsfw: true, // TODO: Maybe make this configurable?
+            },
+            paramsSerializer: params =>
+              qs.stringify(params, { indices: false }),
+          },
+        });
+
+        if (resultForAdditionalBeatmaps && resultForAdditionalBeatmaps.status === 200 && resultForAdditionalBeatmaps.data) {
+          beatmapsets.push(...resultForAdditionalBeatmaps.data.beatmapsets.slice(0, ctx.limit - BANCHO_SEARCH_PAGE_SIZE));
+        }
+      }
+    }
+
+    return {
+      result: beatmapsets.map((b: BanchoBeatmapset) =>
+        this.convertService.convertBeatmapset(b),
+      ),
+      status: result.status,
+    };
+  }
+
+  private mapStatusToRankStatus(status: RankStatusInt): RankStatus {
+    switch (status) {
+      case RankStatusInt.PENDING:
+        return RankStatus.PENDING;
+      case RankStatusInt.QUALIFIED:
+        return RankStatus.QUALIFIED;
+      case RankStatusInt.LOVED:
+        return RankStatus.LOVED;
+      case RankStatusInt.GRAVEYARD:
+        return RankStatus.GRAVEYARD;
+      case RankStatusInt.WIP:
+        return RankStatus.WIP;
+      case RankStatusInt.APPROVED:
+        return RankStatus.APPROVED;
+      case RankStatusInt.RANKED:
+        return RankStatus.RANKED;
+      default:
+        return status satisfies never;
+    }
+  }
+
   private async getBeatmapSetById(
     beatmapSetId: number,
   ): Promise<ResultWithStatus<Beatmapset>> {
@@ -188,6 +323,51 @@ export class BanchoClient extends BaseClient {
               },
             },
     );
+
+    if (!result || result.status !== 200 || !result.data) {
+      return { result: null, status: result?.status ?? 500 };
+    }
+
+    return {
+      result: this.convertService.convertBeatmap(result.data),
+      status: result.status,
+    };
+  }
+
+  private async getBeatmapByHash(
+    beatmapHash: string,
+  ): Promise<ResultWithStatus<Beatmap>> {
+    const result = await this.api.get<BanchoBeatmap>(`api/v2/beatmaps/lookup?checksum=${beatmapHash}`, {
+      config: {
+        headers: {
+          Authorization: `Bearer ${await this.osuApiKey}`,
+        },
+      },
+    });
+
+    if (!result || result.status !== 200 || !result.data) {
+      return { result: null, status: result?.status ?? 500 };
+    }
+
+    return {
+      result: this.convertService.convertBeatmap(result.data),
+      status: result.status,
+    };
+  }
+
+  private async getBeatmapByFilename(
+    beatmapHash: string,
+  ): Promise<ResultWithStatus<Beatmap>> {
+    const result = await this.api.get<BanchoBeatmap>(`api/v2/beatmaps/lookup`, {
+      config: {
+        headers: {
+          Authorization: `Bearer ${await this.osuApiKey}`,
+        },
+        params: {
+          filename: beatmapHash,
+        },
+      },
+    });
 
     if (!result || result.status !== 200 || !result.data) {
       return { result: null, status: result?.status ?? 500 };

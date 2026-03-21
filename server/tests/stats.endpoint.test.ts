@@ -1,7 +1,6 @@
 import { HttpStatusCode } from "axios";
 import {
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -17,10 +16,6 @@ import { Mocker } from "./utils/mocker";
 describe("Stats Endpoint", () => {
   let app: Elysia;
   const originalEnv = config.ShowInternalValuesInPublicStatsEndpoint;
-
-  beforeAll(async () => {
-    await Mocker.ensureDatabaseInitialized();
-  });
 
   beforeEach(async () => {
     jest.restoreAllMocks();

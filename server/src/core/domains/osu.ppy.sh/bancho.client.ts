@@ -32,6 +32,7 @@ export class BanchoClient extends BaseClient {
         abilities: [
           ClientAbilities.GetBeatmapById,
           ClientAbilities.GetBeatmapByHash,
+          ClientAbilities.GetBeatmapByFilename,
           ClientAbilities.GetBeatmapSetById,
           ClientAbilities.GetBeatmaps,
           ClientAbilities.DownloadOsuBeatmap,
@@ -49,6 +50,7 @@ export class BanchoClient extends BaseClient {
             abilities: [
               ClientAbilities.GetBeatmapById,
               ClientAbilities.GetBeatmapByHash,
+              ClientAbilities.GetBeatmapByFilename,
               ClientAbilities.GetBeatmapSetById,
               ClientAbilities.GetBeatmaps,
               ClientAbilities.DownloadOsuBeatmap,
@@ -84,6 +86,9 @@ export class BanchoClient extends BaseClient {
     }
     else if (ctx.beatmapHash) {
       return await this.getBeatmapByHash(ctx.beatmapHash);
+    }
+    else if (ctx.beatmapFilename) {
+      return await this.getBeatmapByFilename(ctx.beatmapFilename);
     }
 
     throw new Error("Invalid arguments");
@@ -279,6 +284,30 @@ export class BanchoClient extends BaseClient {
       config: {
         headers: {
           Authorization: `Bearer ${await this.osuApiKey}`,
+        },
+      },
+    });
+
+    if (!result || result.status !== 200 || !result.data) {
+      return { result: null, status: result?.status ?? 500 };
+    }
+
+    return {
+      result: this.convertService.convertBeatmap(result.data),
+      status: result.status,
+    };
+  }
+
+  private async getBeatmapByFilename(
+    beatmapHash: string,
+  ): Promise<ResultWithStatus<Beatmap>> {
+    const result = await this.api.get<BanchoBeatmap>(`api/v2/beatmaps/lookup`, {
+      config: {
+        headers: {
+          Authorization: `Bearer ${await this.osuApiKey}`,
+        },
+        params: {
+          filename: beatmapHash,
         },
       },
     });

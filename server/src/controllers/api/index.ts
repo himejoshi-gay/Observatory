@@ -53,6 +53,48 @@ export default (app: App) => {
       },
     )
     .get(
+      "v2/filename/:filename",
+      async ({
+        BeatmapsManagerInstance,
+        params: { filename },
+        query: { full },
+        set,
+      }) => {
+        const beatmap = await BeatmapsManagerInstance.getBeatmap({
+          beatmapFilename: filename,
+          allowMissingNonBeatmapValues: full,
+        });
+
+        if (beatmap.source) {
+          set.headers["X-Data-Source"] = beatmap.source;
+        }
+
+        const { source: _, ...responseBeatmap } = beatmap;
+        if (!full || !beatmap.data)
+          return responseBeatmap?.data ?? responseBeatmap;
+
+        const beatmapset = await BeatmapsManagerInstance.getBeatmapSet({
+          beatmapSetId: beatmap.data.beatmapset_id,
+        });
+
+        if (beatmapset.source) {
+          set.headers["X-Data-Source"] = beatmapset.source;
+        }
+
+        const { source: __, ...responseBeatmapset } = beatmapset;
+        return responseBeatmapset?.data ?? responseBeatmapset;
+      },
+      {
+        params: t.Object({
+          filename: t.String(),
+        }),
+        query: t.Object({
+          full: t.Optional(t.BooleanString()),
+        }),
+        tags: ["v2"],
+      },
+    )
+    .get(
       "v2/md5/:hash",
       async ({
         BeatmapsManagerInstance,

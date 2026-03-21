@@ -41,6 +41,7 @@ export type DownloadOsuBeatmap = {
 export type GetBeatmapOptions = {
   beatmapId?: number;
   beatmapHash?: string;
+  beatmapFilename?: string;
   allowMissingNonBeatmapValues?: boolean;
 };
 
@@ -61,6 +62,7 @@ export enum ClientAbilities {
   GetBeatmapsetsByBeatmapIds = 1 << 11, // 2048
   GetBeatmapByIdWithSomeNonBeatmapValues = 1 << 12, // 4096
   GetBeatmapByHashWithSomeNonBeatmapValues = 1 << 13, // 8192
+  GetBeatmapByFilename = 1 << 14, // 16384
 }
 
 export type MirrorClient<T extends BaseClient = BaseClient> = {

@@ -74,14 +74,6 @@ export async function getBeatmapSetById(
     beatmaps: entities.map(e => e.beatmaps),
   };
 
-  if (
-    result.beatmaps.some(
-      b => Date.parse(b.validUntil) < getUTCDate().getTime(),
-    )
-  ) {
-    return null;
-  }
-
   return await enrichWithBeatmaps(
     databaseToObject(result.beatmapsets),
     result.beatmaps.map(b => beatmapDatabaseToObject(b)),

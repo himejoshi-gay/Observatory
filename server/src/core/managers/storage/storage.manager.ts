@@ -73,7 +73,7 @@ export class StorageManager {
       this.cacheService.insertBeatmap(entity);
     }
 
-    return entity ?? undefined;
+    return entity;
   }
 
   async getBeatmapSet(
@@ -93,7 +93,7 @@ export class StorageManager {
       this.cacheService.insertBeatmapset(entity);
     }
 
-    return entity ?? undefined;
+    return entity;
   }
 
   async getBeatmapSetsByBeatmapIds(
